@@ -179,6 +179,38 @@ paths:
             text/plain:
               schema:
                 type: string
+  /doctors/{doctorId}/bookings:
+    get:
+      summary: Get all bookings of a doctor
+      operationId: getDoctorsDoctoridBookings
+      parameters:
+      - name: doctorId
+        in: path
+        description: ID of the doctor
+        required: true
+        schema:
+          type: string
+      - name: date
+        in: query
+        description: "Date of the boookings (Format: yyyy-MM-dd)"
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        "500":
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
   /me:
     get:
       summary: Get doctor's details
@@ -315,6 +347,47 @@ paths:
             text/plain:
               schema:
                 type: string
+  /org-info:
+    get:
+      summary: Get information about the organization
+      operationId: getOrgInfo
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgInfo'
+        "404":
+          description: NotFound
+        "500":
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
+    put:
+      summary: Update organization information
+      operationId: putOrgInfo
+      requestBody:
+        description: updated organization details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgInfoItem'
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgInfo'
+        "500":
+          description: Internal server error
+          content:
+            text/plain:
+              schema:
+                type: string
 components:
   schemas:
     Availability:
@@ -346,6 +419,15 @@ components:
         appointmentNumber:
           type: integer
           format: int64
+    OrgInfo:
+      allOf:
+      - $ref: '#/components/schemas/OrgInfoItem'
+      - required:
+        - orgName
+        type: object
+        properties:
+          orgName:
+            type: string
     BookingItem:
       required:
       - appointmentNumber
@@ -376,7 +458,10 @@ components:
         petDoB:
           type: string
         status:
-          $ref: '#/components/schemas/BookingStatus'
+          oneOf:
+          - {}
+          - {}
+          - type: string
         date:
           type: string
         sessionStartTime:
@@ -386,6 +471,21 @@ components:
         appointmentNumber:
           type: integer
           format: int64
+    OrgInfoItem:
+      required:
+      - address
+      - name
+      - telephoneNumber
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        telephoneNumber:
+          type: string
+        registrationNumber:
+          type: string
     DoctorItem:
       required:
       - availability
@@ -414,10 +514,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Availability'
-    BookingStatus:
-      oneOf:
-      - {}
-      - {}
     Booking:
       allOf:
       - $ref: '#/components/schemas/BookingItem'
@@ -426,11 +522,14 @@ components:
         - emailAddress
         - id
         - org
+        - referenceNumber
         type: object
         properties:
           id:
             type: string
           org:
+            type: string
+          referenceNumber:
             type: string
           emailAddress:
             type: string

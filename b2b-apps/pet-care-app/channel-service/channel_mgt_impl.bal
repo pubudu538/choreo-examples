@@ -6,16 +6,18 @@ import ballerina/log;
 import ballerinax/mysql;
 import ballerina/time;
 import ballerina/http;
+import ballerina/random;
 
 configurable string dbHost = "localhost";
 configurable string dbUsername = "admin";
 configurable string dbPassword = "admin";
 configurable string dbDatabase = "CHANNEL_DB";
 configurable int dbPort = 3306;
-configurable string emailService = "localhost:9091";
+configurable string emailService = "localhost:9090";
 
 table<Doctor> key(org, id) doctorRecords = table [];
 table<Booking> key(org, id) bookingRecords = table [];
+table<OrgInfo> key(orgName) orgRecords = table [];
 
 final mysql:Client|error dbClient;
 boolean useDB = false;
@@ -63,24 +65,23 @@ function getConnection() returns jdbc:Client|error {
 
 function getDoctors(string org) returns Doctor[]|error {
 
-    Doctor[] doctorList = [];
     if (useDB) {
-        // pets = check dbGetPetsByOwner(owner);
+        return dbGetDoctorsByOrg(org);
     } else {
+        Doctor[] doctorList = [];
         doctorRecords.forEach(function(Doctor doctor) {
             if doctor.org == org {
                 doctorList.push(doctor);
             }
         });
+        return doctorList;
     }
-    return doctorList;
 }
 
 function getDoctorByIdAndOrg(string org, string doctorId) returns Doctor|()|error {
 
     if (useDB) {
-        // return dbGetPetByOwnerAndPetId(owner, petId);
-        return ();
+        return dbGetDoctorByIdAndOrg(org, doctorId);
     } else {
         Doctor? doctor = doctorRecords[org, doctorId];
         if doctor is () {
@@ -105,8 +106,7 @@ function getDoctorById(string doctorId) returns Doctor|()|error {
         createdAt: ""
     };
     if (useDB) {
-        // return dbGetPetByOwnerAndPetId(owner, petId);
-        return ();
+        return dbGetDoctorByDoctorId(doctorId);
     } else {
         foreach Doctor doc in doctorRecords {
             if doc.id == doctorId {
@@ -122,7 +122,7 @@ function getDoctorById(string doctorId) returns Doctor|()|error {
     }
 }
 
-function getDoctorByEmailAndOrg(string org, string emailAddress) returns Doctor|()|error {
+function getDoctorByOrgAndEmail(string org, string emailAddress) returns Doctor|()|error {
 
     Doctor doctor = {
         id: "",
@@ -137,8 +137,7 @@ function getDoctorByEmailAndOrg(string org, string emailAddress) returns Doctor|
         createdAt: ""
     };
     if (useDB) {
-        // return dbGetPetByOwnerAndPetId(owner, petId);
-        return ();
+        return dbGetDoctorByOrgAndEmail(org, emailAddress);
     } else {
         foreach Doctor doc in doctorRecords {
             if doc.org == org && doc.emailAddress == emailAddress {
@@ -158,21 +157,18 @@ function getDoctorByEmailAndOrg(string org, string emailAddress) returns Doctor|
 function updateDoctorById(string org, string doctorId, DoctorItem updatedDoctorItem) returns Doctor|()|error {
 
     if (useDB) {
-        // Pet|() oldPet = check dbGetPetByOwnerAndPetId(owner, petId);
-        // if oldPet is () {
-        //     return ();
-        // }
+        Doctor|() oldDoctor = check dbGetDoctorByIdAndOrg(org, doctorId);
+        if oldDoctor is () {
+            return ();
+        }
 
-        // Pet pet = {id: petId, owner: owner, ...updatedPetItem};
-        // Pet|error updatedPet = dbUpdatePet(pet);
+        Doctor doctor = {id: doctorId, org: org, createdAt: oldDoctor.createdAt, ...updatedDoctorItem};
+        Doctor|error updatedDoctor = dbUpdateDoctor(doctor);
 
-        // if updatedPet is error {
-        //     return updatedPet;
-        // }
-        // enableAlerts(email, owner, updatedPet);
-        // return updatedPet;
-        return ();
-
+        if updatedDoctor is error {
+            return updatedDoctor;
+        }
+        return updatedDoctor;
     } else {
         Doctor? oldeDoctorRecord = doctorRecords[org, doctorId];
         if oldeDoctorRecord is () {
@@ -187,8 +183,7 @@ function updateDoctorById(string org, string doctorId, DoctorItem updatedDoctorI
 function deleteDoctorById(string org, string doctorId) returns string|()|error {
 
     if (useDB) {
-        // return dbDeletePetById(owner, petId);
-        return ();
+        return dbDeleteDoctorById(org, doctorId);
     } else {
         Doctor? doctorRecord = doctorRecords[org, doctorId];
         if doctorRecord is () {
@@ -206,16 +201,19 @@ function addDoctor(DoctorItem doctorItem, string org) returns Doctor|error {
     time:Civil currentTime = time:utcToCivil(currentUtc);
     string timeString = civilToIso8601(currentTime);
 
+    Doctor doctor = {
+        id: docId,
+        org: org,
+        createdAt: timeString,
+        ...doctorItem
+    };
+
     if (useDB) {
-        // Pet pet = {id: petId, owner: owner, ...petItem};
-        // Pet addedPet = check dbAddPet(pet);
-        // enableAlerts(email, owner, addedPet);
-        // return addedPet;
-        return error("Not implemented");
+        return dbAddDoctor(doctor);
     } else {
-        doctorRecords.put({id: docId, createdAt: timeString, org: org, ...doctorItem});
-        Doctor doctor = <Doctor>doctorRecords[org, docId];
-        return doctor;
+        doctorRecords.put(doctor);
+        Doctor addedDoctor = <Doctor>doctorRecords[org, docId];
+        return addedDoctor;
     }
 }
 
@@ -223,19 +221,19 @@ function updateThumbnailByDoctorId(string org, string doctorId, Thumbnail thumbn
 
     if (useDB) {
 
-        // string|()|error deleteResult = dbDeleteThumbnailById(petId);
+        string|()|error deleteResult = dbDeleteThumbnailById(doctorId);
 
-        // if deleteResult is error {
-        //     return deleteResult;
-        // }
+        if deleteResult is error {
+            return deleteResult;
+        }
 
-        // if thumbnail.fileName != "" {
-        //     string|error result = dbAddThumbnailById(petId, thumbnail);
+        if thumbnail.fileName != "" {
+            string|error result = dbAddThumbnailById(doctorId, thumbnail);
 
-        //     if result is error {
-        //         return result;
-        //     }
-        // }
+            if result is error {
+                return result;
+            }
+        }
 
         return "Thumbnail updated successfully";
     } else {
@@ -258,17 +256,15 @@ function getThumbnailByDoctorId(string org, string doctorId) returns Thumbnail|(
 
     if (useDB) {
 
-        // Thumbnail|string|error getResult = dbGetThumbnailById(petId);
+        Thumbnail|string|error getResult = dbGetThumbnailById(doctorId);
 
-        // if getResult is error {
-        //     return getResult;
-        // } else if getResult is string {
-        //     return getResult;
-        // } else {
-        //     return <Thumbnail>getResult;
-        // }
-        return ();
-
+        if getResult is error {
+            return getResult;
+        } else if getResult is string {
+            return getResult;
+        } else {
+            return <Thumbnail>getResult;
+        }
     } else {
 
         string thumbnailKey = getThumbnailKey(org, doctorId);
@@ -281,19 +277,41 @@ function getThumbnailByDoctorId(string org, string doctorId) returns Thumbnail|(
     }
 }
 
-function getBookings(string org) returns Booking[]|error {
+function getBookingsByOrgAndEmail(string org, string email) returns Booking[]|error {
 
-    Booking[] bookingList = [];
     if (useDB) {
-        // pets = check dbGetPetsByOwner(owner);
+        return dbGetBookingsByOrgAndEmail(org, email);
     } else {
+        Booking[] bookingList = [];
         bookingRecords.forEach(function(Booking booking) {
-            if booking.org == org {
+            if booking.org == org && booking.emailAddress == email {
                 bookingList.push(booking);
             }
         });
+        return bookingList;
     }
-    return bookingList;
+}
+
+function getBookingsByDoctorId(string org, string doctorId, string date) returns Booking[]|error {
+
+    if (useDB) {
+        return dbGetBookingsByOrgAndDoctorId(org, doctorId, date);
+    } else {
+        Booking[] bookingList = [];
+        bookingRecords.forEach(function(Booking booking) {
+            if date is "" {
+                if booking.org == org && booking.doctorId == doctorId {
+                    bookingList.push(booking);
+                }
+            } else {
+                if booking.org == org && booking.doctorId == doctorId && booking.date == date {
+                    bookingList.push(booking);
+                }
+            }
+        });
+
+        return bookingList;
+    }
 }
 
 function addBooking(BookingItem bookingItem, string org, string emailAddress) returns Booking|error {
@@ -302,21 +320,29 @@ function addBooking(BookingItem bookingItem, string org, string emailAddress) re
     time:Utc currentUtc = time:utcNow();
     time:Civil currentTime = time:utcToCivil(currentUtc);
     string timeString = civilToIso8601(currentTime);
+    string refNumber = getReferenceNumber();
 
+    Booking booking = {
+        id: bookingId,
+        org: org,
+        referenceNumber: refNumber,
+        emailAddress: emailAddress,
+        createdAt: timeString,
+        ...bookingItem
+    };
     if (useDB) {
-        return error("Not implemented");
+        return dbAddBooking(booking);
     } else {
-        bookingRecords.put({id: bookingId, org: org, emailAddress: emailAddress, createdAt: timeString, ...bookingItem});
-        Booking booking = <Booking>bookingRecords[org, bookingId];
-        return booking;
+        bookingRecords.put(booking);
+        Booking addedBooking = <Booking>bookingRecords[org, bookingId];
+        return addedBooking;
     }
 }
 
 function getBookingByIdAndOrg(string org, string bookingId) returns Booking|()|error {
 
     if (useDB) {
-        // return dbGetPetByOwnerAndPetId(owner, petId);
-        return ();
+        return dbGetBookingsByOrgAndId(org, bookingId);
     } else {
         Booking? booking = bookingRecords[org, bookingId];
         if booking is () {
@@ -328,31 +354,37 @@ function getBookingByIdAndOrg(string org, string bookingId) returns Booking|()|e
 
 function updateBookingById(string org, string bookingId, BookingItem updatedBookingItem) returns Booking|()|error {
 
-    if (useDB) {
-        return ();
+    Booking|()|error oldeBookingRecord = getBookingByIdAndOrg(org, bookingId);
 
-    } else {
-        Booking? oldeBookingRecord = bookingRecords[org, bookingId];
-        if oldeBookingRecord is () {
-            return ();
-        }
-        bookingRecords.put({
+    if oldeBookingRecord is error {
+        return oldeBookingRecord;
+    } else if oldeBookingRecord is () {
+        return ();
+    } else if oldeBookingRecord is Booking {
+
+        Booking booking = {
             id: bookingId,
             org: org,
+            referenceNumber: oldeBookingRecord.referenceNumber,
             emailAddress: oldeBookingRecord.emailAddress,
             createdAt: oldeBookingRecord.createdAt,
             ...updatedBookingItem
-        });
-        Booking? booking = bookingRecords[org, bookingId];
-        return booking;
+        };
+
+        if (useDB) {
+            return dbUpdateBooking(booking);
+        } else {
+            bookingRecords.put(booking);
+            Booking? updatedBooking = bookingRecords[org, bookingId];
+            return updatedBooking;
+        }
     }
 }
 
 function deleteBookingById(string org, string bookingId) returns string|()|error {
 
     if (useDB) {
-        // return dbDeletePetById(owner, petId);
-        return ();
+        return dbDeleteBookingById(bookingId);
     } else {
         Booking? bookingRecord = bookingRecords[org, bookingId];
         if bookingRecord is () {
@@ -363,7 +395,36 @@ function deleteBookingById(string org, string bookingId) returns string|()|error
     }
 }
 
-# Converts time:Civil time to string 20220712T054235Z
+function getOrgInfo(string org) returns OrgInfo|()|error {
+
+    if (useDB) {
+        return dbGetOrgInfoByOrg(org);
+    } else {
+        OrgInfo? orgInfo = orgRecords[org];
+        if orgInfo is () {
+            return ();
+        }
+        return orgInfo;
+    }
+}
+
+function updateOrgInfo(string org, OrgInfoItem orgInfoItem) returns OrgInfo|error {
+
+    OrgInfo orgInfo = {
+        orgName: org,
+        ...orgInfoItem
+    };
+
+    if (useDB) {
+        return dbUpdateOrgInfoByOrg(orgInfo);
+    } else {
+        orgRecords.put(orgInfo);
+        OrgInfo updatedOrgInfo = <OrgInfo>orgRecords[org];
+        return updatedOrgInfo;
+    }
+}
+
+# Converts time:Civil time to string 2022-07-12T05:42:35Z
 #
 # + time - time:Civil time record.
 # + return - Converted ISO 8601 string.
@@ -388,7 +449,7 @@ function civilToIso8601(time:Civil time) returns string {
             timeZone = zoneOffset.hours < 0 ? string `-${hours}${minutes}` : string `+${hours}${minutes}`;
         }
     }
-    return string `${year}${month}${day}T${hour}${minute}${second}${timeZone}`;
+    return string `${year}-${month}-${day}T${hour}:${minute}:${second}${timeZone}`;
 }
 
 function getThumbnailKey(string org, string doctorId) returns string {
@@ -403,8 +464,9 @@ function sendEmail(Booking booking, Doctor doctor) returns error? {
     string emailAddress = booking.emailAddress;
 
     Property[] properties = [
+        addProperty("currentDate", getCurrentDate()),
         addProperty("emailAddress", emailAddress),
-        addProperty("bookingId", booking.id),
+        addProperty("bookingId", booking.referenceNumber),
         addProperty("appointmentDate", booking.date),
         addProperty("appointmentTimeSlot", booking.sessionStartTime + " - " + booking.sessionEndTime),
         addProperty("appointmentNo", booking.appointmentNumber.toString()),
@@ -412,7 +474,7 @@ function sendEmail(Booking booking, Doctor doctor) returns error? {
         addProperty("petName", booking.petName),
         addProperty("petType", booking.petType),
         addProperty("petDoB", booking.petDoB),
-        addProperty("doctorName", doctor.name ),
+        addProperty("doctorName", doctor.name),
         addProperty("doctorSpecialty", doctor.specialty),
         addProperty("hospitalName", "Hospital Name"),
         addProperty("hospitalAddress", "Hospital Address"),
@@ -426,13 +488,14 @@ function sendEmail(Booking booking, Doctor doctor) returns error? {
         properties: properties
     };
 
-    http:Response response = check httpClient->/messages.post({
-        emailContent
-    });
+    http:Request request = new;
+    request.setJsonPayload(emailContent);
+    http:Response response = check httpClient->/messages.post(request);
 
     if (response.statusCode == 200) {
         return;
-    } else {
+    }
+    else {
         return error("Error while sending email, " + response.reasonPhrase);
     }
 }
@@ -440,4 +503,92 @@ function sendEmail(Booking booking, Doctor doctor) returns error? {
 function addProperty(string name, string value) returns Property {
     Property prop = {name: name, value: value};
     return prop;
+}
+
+function getCurrentDate() returns string {
+    time:Utc currentUtc = time:utcNow();
+    time:Civil currentTime = time:utcToCivil(currentUtc);
+
+    string year;
+    string month;
+    string day;
+    [year, month, day] = getDateFromCivilTime(currentTime);
+
+    int|error currentMonth = int:fromString(month);
+    if (currentMonth is error) {
+        log:printError("Error while converting month to int: " + currentMonth.toString());
+        return "";
+    }
+    return getMonthName(currentMonth) + " " + day + ", " + year;
+}
+
+function getDateFromCivilTime(time:Civil time) returns [string, string, string] {
+
+    string year = time.year.toString();
+    string month = time.month < 10 ? string `0${time.month}` : time.month.toString();
+    string day = time.day < 10 ? string `0${time.day}` : time.day.toString();
+    return [year, month, day];
+}
+
+function getMonthName(int index) returns string {
+    match index {
+        1 => {
+            return "January";
+        }
+        2 => {
+            return "February";
+        }
+        3 => {
+            return "March";
+        }
+        4 => {
+            return "April";
+        }
+        5 => {
+            return "May";
+        }
+        6 => {
+            return "June";
+        }
+        7 => {
+            return "July";
+        }
+        8 => {
+            return "August";
+        }
+        9 => {
+            return "September";
+        }
+        10 => {
+            return "October";
+        }
+        11 => {
+            return "November";
+        }
+        12 => {
+            return "December";
+        }
+        _ => {
+            return "";
+        }
+    }
+}
+
+function getReferenceNumber() returns string {
+
+    time:Utc currentUtc = time:utcNow();
+    time:Civil currentTime = time:utcToCivil(currentUtc);
+
+    string year;
+    string month;
+    string day;
+    [year, month, day] = getDateFromCivilTime(currentTime);
+    int|random:Error randomInteger = random:createIntInRange(1000, 10000);
+
+    if (randomInteger is random:Error) {
+        log:printError("Error while generating random number: " + randomInteger.toString());
+        return year + month + day + "xxxxx";
+    }
+
+    return year + month + day + randomInteger.toString();
 }

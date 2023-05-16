@@ -16,6 +16,23 @@ type Doctor record {|
     readonly string createdAt;
 |};
 
+type DoctorAvailabilityRecord record {|
+    string name;
+    string gender;
+    string registrationNumber;
+    string specialty;
+    string emailAddress;
+    string dateOfBirth?;
+    string address?;
+    string id;
+    string org;
+    string createdAt;
+    string date;
+    string startTime;
+    string endTime;
+    int availableBookingCount;
+|};
+
 type Thumbnail record {|
     string fileName;
     string content;
@@ -40,7 +57,7 @@ type BookingItem record {|
     string petName;
     string petType;
     string petDoB;
-    BookingStatus status;
+    BookingStatus|string status;
     *Appointment;
 |};
 
@@ -62,6 +79,7 @@ type Booking record {|
     *BookingItem;
     readonly string id;
     readonly string org;
+    readonly string referenceNumber;
     readonly string emailAddress;
     readonly string createdAt;
 |};
@@ -82,3 +100,14 @@ enum EmailType {
     BOOKING_CONFIRMED = "Booking Confirmed"
 }
 
+type OrgInfo record {|
+    *OrgInfoItem;
+    readonly string orgName;
+|};
+
+type OrgInfoItem record {|
+    string name;
+    string address;
+    string telephoneNumber;
+    string registrationNumber?;
+|};
