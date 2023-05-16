@@ -10,29 +10,32 @@ service / on new http:Listener(9090) {
     # + return - List of pets or error
     resource function get pets(http:Headers headers) returns Pet[]|error? {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
-        }
-
-        return getPets(owner);
-    }
-
-    # Create a new pet
-    # + newPet - basic pet details
-    # + return - created pet record or error
-    resource function post pets(http:Headers headers, @http:Payload PetItem newPet) returns Pet|http:Created|error? {
-
-        [string, string]|error ownerInfo = getOwnerWithEmail(headers);
+        [string, string]|error ownerInfo = getOwner(headers);
         if ownerInfo is error {
             return ownerInfo;
         }
 
-        string owner;
-        string email;
-        [owner, email] = ownerInfo;
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
 
-        Pet|error pet = addPet(newPet, owner, email);
+        return getPets(org, owner);
+    }
+
+    # Create a new pet
+    # + newPet - Basic pet details
+    # + return - Created pet record or error
+    resource function post pets(http:Headers headers, @http:Payload PetItem newPet) returns Pet|http:Created|error? {
+
+        [string, string, string]|error ownerInfo = getOwnerWithEmail(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+        string email = ownerInfo[2];
+
+        Pet|error pet = addPet(newPet, org, owner, email);
         return pet;
     }
 
@@ -41,12 +44,15 @@ service / on new http:Listener(9090) {
     # + return - Pet details or not found 
     resource function get pets/[string petId](http:Headers headers) returns Pet|http:NotFound|error? {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
         }
 
-        Pet|()|error result = getPetByIdAndOwner(owner, petId);
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        Pet|()|error result = getPetByIdAndOwner(org, owner, petId);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -55,20 +61,20 @@ service / on new http:Listener(9090) {
 
     # Update a pet
     # + petId - ID of the pet
-    # + updatedPetItem - updated pet details
+    # + updatedPetItem - Updated pet details
     # + return - Pet details or not found 
     resource function put pets/[string petId](http:Headers headers, @http:Payload PetItem updatedPetItem) returns Pet|http:NotFound|error? {
 
-        [string, string]|error ownerInfo = getOwnerWithEmail(headers);
+        [string, string, string]|error ownerInfo = getOwnerWithEmail(headers);
         if ownerInfo is error {
             return ownerInfo;
         }
 
-        string owner;
-        string email;
-        [owner, email] = ownerInfo;
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+        string email = ownerInfo[2];
 
-        Pet|()|error result = updatePetById(owner, email, petId, updatedPetItem);
+        Pet|()|error result = updatePetById(org, owner, email, petId, updatedPetItem);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -77,15 +83,18 @@ service / on new http:Listener(9090) {
 
     # Delete a pet
     # + petId - ID of the pet
-    # + return - Ok response or error
+    # + return - No Content response or error
     resource function delete pets/[string petId](http:Headers headers) returns http:NoContent|http:NotFound|error? {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
         }
 
-        string|()|error result = deletePetById(owner, petId);
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        string|()|error result = deletePetById(org, owner, petId);
         if result is () {
             return http:NOT_FOUND;
         } else if result is error {
@@ -94,13 +103,19 @@ service / on new http:Listener(9090) {
         return http:NO_CONTENT;
     }
 
+    # Update thumbnail for the pet
+    # + petId - ID of the pet
+    # + return - Ok response or error
     resource function put pets/[string petId]/thumbnail(http:Request request, http:Headers headers)
     returns http:Ok|http:NotFound|http:BadRequest|error {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
         }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
 
         var bodyParts = check request.getBodyParts();
         Thumbnail thumbnail;
@@ -114,7 +129,7 @@ service / on new http:Listener(9090) {
             thumbnail = <Thumbnail>handleContentResult;
         }
 
-        string|()|error thumbnailByPetId = updateThumbnailByPetId(owner, petId, thumbnail);
+        string|()|error thumbnailByPetId = updateThumbnailByPetId(org, owner, petId, thumbnail);
 
         if thumbnailByPetId is error {
             return thumbnailByPetId;
@@ -125,14 +140,20 @@ service / on new http:Listener(9090) {
         return http:OK;
     }
 
+    # Get thumbnail for the pet
+    # + petId - ID of the pet
+    # + return - Ok response or error
     resource function get pets/[string petId]/thumbnail(http:Headers headers) returns http:Response|http:NotFound|error {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
         }
 
-        Thumbnail|()|string|error thumbnail = getThumbnailByPetId(owner, petId);
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        Thumbnail|()|string|error thumbnail = getThumbnailByPetId(org, owner, petId);
         http:Response response = new;
 
         if thumbnail is () {
@@ -155,18 +176,132 @@ service / on new http:Listener(9090) {
         return response;
     }
 
-    resource function get settings(http:Headers headers) returns Settings|error {
+    # Get medical reports of the pet
+    # + petId - ID of the pet
+    # + return - Medical report record or error
+    resource function get pets/[string petId]/medical\-reports(http:Headers headers) returns MedicalReport[]|error? {
 
-        [string, string]|error ownerInfo = getOwnerWithEmail(headers);
+        [string, string]|error ownerInfo = getOwner(headers);
         if ownerInfo is error {
             return ownerInfo;
         }
 
-        string owner;
-        string email;
-        [owner, email] = ownerInfo;
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
 
-        Settings|error settings = getSettings(owner, email);
+        return getMedicalReportsByPetId(org, owner, petId);
+    }
+
+    # Create a new medical report
+    # + medicalReportItem - Medical report details
+    # + return - Created medical report record or error
+    resource function post pets/[string petId]/medical\-reports(http:Headers headers,
+            @http:Payload MedicalReportItem medicalReportItem) returns MedicalReport|http:Created|http:NotFound|error? {
+
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        MedicalReport|()|error medicalReport = addMedicalReport(org, owner, petId, medicalReportItem);
+        if medicalReport is () {
+            return http:NOT_FOUND;
+        }
+
+        return medicalReport;
+    }
+
+    # Get medical reports of the pet
+    # + petId - ID of the pet
+    # + reportId - ID of the report
+    # + return - Medical report record or error
+    resource function get pets/[string petId]/medical\-reports/[string reportId](http:Headers headers) returns MedicalReport|
+    http:NotFound|error? {
+
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        MedicalReport|()|error medicalReportsByPetIdAndReportId = getMedicalReportsByPetIdAndReportId(org, owner, petId, reportId);
+        if medicalReportsByPetIdAndReportId is () {
+            return http:NOT_FOUND;
+        }
+
+        return medicalReportsByPetIdAndReportId;
+    }
+
+    # Update medical reports of the pet
+    # + petId - ID of the pet
+    # + reportId - ID of the report
+    # + updatedMedicalReportItem - Updated medical report details
+    # + return - Medical report record or error
+    resource function put pets/[string petId]/medical\-reports/[string reportId](http:Headers headers,
+            @http:Payload MedicalReportItem updatedMedicalReportItem) returns http:Ok|http:NotFound|error? {
+
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        MedicalReport|()|error medicalReport = updateMedicalReport(org, owner, petId, reportId, updatedMedicalReportItem);
+        if medicalReport is MedicalReport {
+            return http:OK;
+        } else if medicalReport is () {
+            return http:NOT_FOUND;
+        } else {
+            return medicalReport;
+        }
+    }
+
+    # Delete medical reports of the pet
+    # + petId - ID of the pet
+    # + reportId - ID of the report
+    # + return - No Content response or error
+    resource function delete pets/[string petId]/medical\-reports/[string reportId](http:Headers headers) returns
+    http:NoContent|http:NotFound|error? {
+
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        string|()|error medicalReportById = deleteMedicalReportById(org, owner, petId, reportId);
+        if medicalReportById is string {
+            return http:NO_CONTENT;
+        } else if medicalReportById is () {
+            return http:NOT_FOUND;
+        } else {
+            return medicalReportById;
+        }
+    }
+
+    # Get settings for the user
+    # + return - Settings response or error
+    resource function get settings(http:Headers headers) returns Settings|error {
+
+        [string, string, string]|error ownerInfo = getOwnerWithEmail(headers);
+        if ownerInfo is error {
+            return ownerInfo;
+        }
+
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+        string email = ownerInfo[2];
+
+        Settings|error settings = getSettings(org, owner, email);
 
         if settings is error {
             return settings;
@@ -175,14 +310,20 @@ service / on new http:Listener(9090) {
         return settings;
     }
 
+    # Updated settings for the user
+    # + settings - Settings details
+    # + return - OK response or error
     resource function put settings(http:Headers headers, @http:Payload Settings settings) returns http:Ok|error {
 
-        string|error owner = getOwner(headers);
-        if owner is error {
-            return owner;
+        [string, string]|error ownerInfo = getOwner(headers);
+        if ownerInfo is error {
+            return ownerInfo;
         }
 
-        SettingsRecord settingsRecord = {owner: owner, ...settings};
+        string owner = ownerInfo[0];
+        string org = ownerInfo[1];
+
+        SettingsRecord settingsRecord = {org: org, owner: owner, ...settings};
         string|error result = updateSettings(settingsRecord);
 
         if result is error {
@@ -193,7 +334,7 @@ service / on new http:Listener(9090) {
 
 }
 
-function getOwner(http:Headers headers) returns string|error {
+function getOwner(http:Headers headers) returns [string, string]|error {
 
     var jwtHeader = headers.getHeader("x-jwt-assertion");
     if jwtHeader is http:HeaderNotFoundError {
@@ -204,7 +345,7 @@ function getOwner(http:Headers headers) returns string|error {
     return getOwnerFromPayload(payload);
 }
 
-function getOwnerWithEmail(http:Headers headers) returns [string, string]|error {
+function getOwnerWithEmail(http:Headers headers) returns [string, string, string]|error {
 
     var jwtHeader = headers.getHeader("x-jwt-assertion");
     if jwtHeader is http:HeaderNotFoundError {
@@ -212,20 +353,29 @@ function getOwnerWithEmail(http:Headers headers) returns [string, string]|error 
     }
 
     [jwt:Header, jwt:Payload] [_, payload] = check jwt:decode(jwtHeader);
-    string owner = getOwnerFromPayload(payload);
+
+    [string, string] ownerInfo = getOwnerFromPayload(payload);
+    string owner = ownerInfo[0];
+    string org = ownerInfo[1];
     string emailAddress = payload["email"].toString();
 
-    return [owner, emailAddress];
+    return [owner, org, emailAddress];
 }
 
-function getOwnerFromPayload(jwt:Payload payload) returns string {
+function getOwnerFromPayload(jwt:Payload payload) returns [string, string] {
 
     string? subClaim = payload.sub;
     if subClaim is () {
         subClaim = "Test_Key_User";
     }
 
-    return <string>subClaim;
+    string? user_org = payload["user_organization"].toString();
+
+    if user_org is "" {
+        user_org = "Test_Key_Org";
+    }
+
+    return [<string>subClaim, <string>user_org];
 }
 
 function handleContent(mime:Entity bodyPart) returns Thumbnail|error? {

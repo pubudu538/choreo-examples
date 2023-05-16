@@ -1,21 +1,15 @@
 import ballerina/task;
 import ballerina/time;
 import ballerina/log;
-import ballerina/email;
-import ballerina/regex;
+import ballerina/http;
 
-import ballerina/io;
-
-configurable string emailHost = "smtp.email.com";
-configurable string emailUsername = "admin";
-configurable string emailPassword = "admin";
+configurable string emailService = "localhost";
 
 map<string> emailOutbox = {};
 
 class Job {
 
     *task:Job;
-    string emailTemplate = "";
 
     public function execute() {
 
@@ -57,34 +51,22 @@ class Job {
                     return;
                 }
                 string currentDate = getMonthName(currentMonth) + " " + day + ", " + year;
-                sendEmail(petAlert, currentDate, vacDate, self.emailTemplate);
+                sendEmail(petAlert, currentDate, vacDate);
             }
 
         }
 
     }
 
-    isolated function init(string emailTemplate) {
-        self.emailTemplate = emailTemplate;
+    isolated function init() {
     }
 }
 
 public function main() returns error? {
 
     decimal jobIntervalInSeconds = 10;
-    string filePath = "/home/ballerina/resources/email_template.html";
 
-    string|io:Error emailTemplate = io:fileReadString(filePath);
-
-    if (emailTemplate is io:Error) {
-        log:printError("Error while loading the email template: " + emailTemplate.toString());
-        log:printError("Please mount the file to the container. Mount location: /home/ballerina/resources/email_template.html");
-        emailTemplate = "";
-    } else {
-        log:printInfo("Email template loaded successfully.");
-    }
-
-    task:JobId|task:Error scheduledJob = task:scheduleJobRecurByFrequency(new Job(check emailTemplate), jobIntervalInSeconds);
+    task:JobId|task:Error scheduledJob = task:scheduleJobRecurByFrequency(new Job(), jobIntervalInSeconds);
     if (scheduledJob is task:JobId) {
         log:printInfo("Job scheduled to run every " + jobIntervalInSeconds.toString() + " seconds.");
     } else {
@@ -93,49 +75,19 @@ public function main() returns error? {
 
 }
 
-function sendEmail(PetAlert petAlert, string currentDate, string vacDate, string emailTemplate) {
+function sendEmail(PetAlert petAlert, string currentDate, string vacDate) {
 
-    if emailHost == "smtp.email.com" {
+    if emailService == "localhost" {
         log:printWarn("Email not configured. Hence not sending the email for the pet alert: " + petAlert.toString());
         updateEmailOutbox(petAlert);
         return;
     }
 
-    do {
-        email:SmtpClient smtpClient = check new (emailHost, emailUsername, emailPassword);
-        string emailSubject = "[Pet Care App][Reminder] You have to take your " + petAlert.breed + ", " + petAlert.name +
-        " to the vaccination on " + vacDate + ".";
-
-        Vaccination[] vaccinations = <Vaccination[]>petAlert.vaccinations;
-        string emailAddress = petAlert.emailAddress;
-        string petName = petAlert.name;
-        string petBreed = petAlert.breed;
-        string petDOB = petAlert.dateOfBirth;
-        string vaccineName = vaccinations[0].name;
-        string lastVaccinationDate = vaccinations[0].lastVaccinationDate;
-
-        string htmlBody = regex:replace(emailTemplate, "\\{emailAddress\\}", emailAddress);
-        htmlBody = regex:replace(htmlBody, "\\{currentDate\\}", currentDate);
-        htmlBody = regex:replaceAll(htmlBody, "\\{nextVaccinationDate\\}", vacDate);
-        htmlBody = regex:replace(htmlBody, "\\{PetName\\}", petName);
-        htmlBody = regex:replace(htmlBody, "\\{PetBreed\\}", petBreed);
-        htmlBody = regex:replace(htmlBody, "\\{PetDOB\\}", petDOB);
-        htmlBody = regex:replace(htmlBody, "\\{vaccineName\\}", vaccineName);
-        htmlBody = regex:replace(htmlBody, "\\{lastVaccinationDate\\}", lastVaccinationDate);
-
-        email:Message email = {
-            to: petAlert.emailAddress,
-            subject: emailSubject,
-            htmlBody: htmlBody
-        };
-
-        check smtpClient->sendMessage(email);
-        log:printInfo("Email sent for the pet: " + petAlert.name);
-        updateEmailOutbox(petAlert);
+    error? sendEmail1Result = connectWithEmailService(petAlert, currentDate, vacDate);
+    if sendEmail1Result is error {
+        log:printError("Error while sending the email for the pet: " + petAlert.name + ", error: " + sendEmail1Result.toString());
     }
-    on fail var e {
-        log:printError("Error while sending the email for the pet: " + petAlert.name + ", error: " + e.toString());
-    }
+    updateEmailOutbox(petAlert);
 
 }
 
@@ -198,4 +150,53 @@ function getMonthName(int index) returns string {
             return "";
         }
     }
+}
+
+function connectWithEmailService(PetAlert petAlert, string currentDate, string vacDate) returns error? {
+
+    http:Client httpClient = check new (emailService);
+    string emailSubject = "[Pet Care App][Reminder] You have to take your " + petAlert.breed + ", " + petAlert.name +
+        " to the vaccination on " + vacDate + ".";
+
+    Vaccination[] vaccinations = <Vaccination[]>petAlert.vaccinations;
+    string emailAddress = petAlert.emailAddress;
+    string petName = petAlert.name;
+    string petBreed = petAlert.breed;
+    string petDOB = petAlert.dateOfBirth;
+    string vaccineName = vaccinations[0].name;
+    string lastVaccinationDate = vaccinations[0].lastVaccinationDate;
+
+    Property[] properties = [
+        addProperty("emailAddress", emailAddress),
+        addProperty("currentDate", currentDate),
+        addProperty("nextVaccinationDate", vacDate),
+        addProperty("petName", petName),
+        addProperty("petBreed", petBreed),
+        addProperty("petDOB", petDOB),
+        addProperty("vaccineName", vaccineName),
+        addProperty("lastVaccinationDate", lastVaccinationDate)
+    ];
+
+    EmailContent emailContent = {
+        emailType: VACCINATION_ALERT,
+        receipient: emailAddress,
+        emailSubject: emailSubject,
+        properties: properties
+    };
+
+    http:Request request = new;
+    request.setJsonPayload(emailContent);
+
+    http:Response response = check httpClient->/messages.post(request);
+
+    if (response.statusCode == 200) {
+        return;
+    } else {
+        return error("Error while sending email, " + response.reasonPhrase);
+    }
+}
+
+function addProperty(string name, string value) returns Property {
+    Property prop = {name: name, value: value};
+    return prop;
 }
