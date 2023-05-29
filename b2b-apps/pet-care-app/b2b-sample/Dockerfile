@@ -1,4 +1,4 @@
-FROM node:16-alpine3.17 as builder
+FROM node:18-alpine3.17 as builder
 
 # Build arguments for user/group configurations
 ARG USER_ID=10001
