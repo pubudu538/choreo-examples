@@ -1,4 +1,4 @@
-FROM node:18-alpine3.17 as builder
+FROM node:19-alpine3.17 as builder
 
 RUN apk update && apk upgrade --no-cache
 # Build arguments for user/group configurations
