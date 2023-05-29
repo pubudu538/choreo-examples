@@ -78,5 +78,9 @@
     "rsuite": "^5.22.2",
     "styled-components": "^5.3.10",
     "tslib": "^2.3.0"
+  },
+  "overrides": {
+    "flat": "^5.0.2"
   }
+
 }
