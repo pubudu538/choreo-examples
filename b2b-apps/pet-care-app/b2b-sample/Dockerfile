@@ -21,8 +21,7 @@ ENV NX_CACHE_DIRECTORY=/tmp/mycache
 
 
 # Install dependencies
-# RUN npm install --save --legacy-peer-deps 
-RUN npm install --force
+RUN npm ci 
 
 USER 10001
 
