@@ -52,12 +52,14 @@
     "url-loader": "^4.1.1"
   },
   "dependencies": {
+    "@asgardeo/auth-react": "^2.0.5",
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@headlessui/react": "^1.7.14",
     "@mui/icons-material": "^5.11.16",
     "@nrwl/workspace": "^15.1.1",
     "@rsuite/charts": "^5.2.0",
+    "@textea/json-viewer": "^3.0.0",
     "@types/styled-components": "^5.1.26",
     "chart.js": "^3.9.1",
     "chartjs-plugin-datalabels": "^2.2.0",
