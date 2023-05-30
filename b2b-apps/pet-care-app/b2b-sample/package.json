@@ -46,7 +46,6 @@
     "nx": "15.1.1",
     "react-final-form": "^6.5.9",
     "react-test-renderer": "18.2.0",
-    "rsuite": "^5.22.2",
     "ts-jest": "28.0.5",
     "ts-node": "10.9.1",
     "url-loader": "^4.1.1"
@@ -61,7 +60,6 @@
     "@mui/lab": "^5.0.0-alpha.131",
     "@mui/x-date-pickers": "^6.5.0",
     "@nrwl/workspace": "^15.1.1",
-    "@rsuite/charts": "^5.2.0",
     "@types/styled-components": "^5.1.26",
     "chart.js": "^3.9.1",
     "chartjs-plugin-datalabels": "^2.2.0",
