@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { default as authConfig } from "../../../../../b2b-sample/config.json";
+import { default as authConfig } from "../../../../config.json";
 import { initInstance } from "../instance";
 
 export const getPetInstance = () => {
