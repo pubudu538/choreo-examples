@@ -1,9 +1,7 @@
 import ballerina/http;
+import ballerina/jwt;
 import ballerina/mime;
 import ballerina/log;
-import pubudu538/choreo.user.info as choreoUserInfo;
-
-choreoUserInfo:UserInfoResolver userInfoResolver = new;
 
 # A service representing a network-accessible API
 # bound to port `9090`.
@@ -13,12 +11,12 @@ service / on new http:Listener(9090) {
     # + return - List of doctors or error
     resource function get doctors(http:Headers headers) returns Doctor[]|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        return getDoctors(userInfo.organization);
+        return getDoctors(org);
     }
 
     # Create a new doctor
@@ -26,12 +24,12 @@ service / on new http:Listener(9090) {
     # + return - created doctor record or error
     resource function post doctors(http:Headers headers, @http:Payload DoctorItem newDoctor) returns Doctor|http:Created|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Doctor|error doctor = addDoctor(newDoctor, userInfo.organization);
+        Doctor|error doctor = addDoctor(newDoctor, org);
         return doctor;
     }
 
@@ -40,12 +38,12 @@ service / on new http:Listener(9090) {
     # + return - Doctor details or not found 
     resource function get doctors/[string doctorId](http:Headers headers) returns Doctor|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Doctor|()|error result = getDoctorByIdAndOrg(userInfo.organization, doctorId);
+        Doctor|()|error result = getDoctorByIdAndOrg(org, doctorId);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -58,12 +56,12 @@ service / on new http:Listener(9090) {
     # + return - Doctor details or not found 
     resource function put doctors/[string doctorId](http:Headers headers, @http:Payload DoctorItem updatedDoctorItem) returns Doctor|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Doctor|()|error result = updateDoctorById(userInfo.organization, doctorId, updatedDoctorItem);
+        Doctor|()|error result = updateDoctorById(org, doctorId, updatedDoctorItem);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -75,12 +73,12 @@ service / on new http:Listener(9090) {
     # + return - Ok response or error
     resource function delete doctors/[string doctorId](http:Headers headers) returns http:NoContent|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        string|()|error result = deleteDoctorById(userInfo.organization, doctorId);
+        string|()|error result = deleteDoctorById(org, doctorId);
         if result is () {
             return http:NOT_FOUND;
         } else if result is error {
@@ -95,9 +93,9 @@ service / on new http:Listener(9090) {
     resource function put doctors/[string doctorId]/thumbnail(http:Request request, http:Headers headers)
     returns http:Ok|http:NotFound|http:BadRequest|error {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
         var bodyParts = check request.getBodyParts();
@@ -112,7 +110,7 @@ service / on new http:Listener(9090) {
             thumbnail = <Thumbnail>handleContentResult;
         }
 
-        string|()|error thumbnailByDoctorId = updateThumbnailByDoctorId(userInfo.organization, doctorId, thumbnail);
+        string|()|error thumbnailByDoctorId = updateThumbnailByDoctorId(org, doctorId, thumbnail);
 
         if thumbnailByDoctorId is error {
             return thumbnailByDoctorId;
@@ -128,12 +126,12 @@ service / on new http:Listener(9090) {
     # + return - Return the thumbnail image or not found
     resource function get doctors/[string doctorId]/thumbnail(http:Headers headers) returns http:Response|http:NotFound|error {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Thumbnail|()|string|error thumbnail = getThumbnailByDoctorId(userInfo.organization, doctorId);
+        Thumbnail|()|string|error thumbnail = getThumbnailByDoctorId(org, doctorId);
         http:Response response = new;
 
         if thumbnail is () {
@@ -162,52 +160,29 @@ service / on new http:Listener(9090) {
     # + return - List of bookings or error
     resource function get doctors/[string doctorId]/bookings(http:Headers headers, string? date) returns Booking[]|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
         string dateValue = "";
         if date != null {
             dateValue = date;
         }
-        return getBookingsByDoctorId(userInfo.organization, doctorId, dateValue);
-    }
-
-    # Get next appointment number of a doctor
-    # + doctorId - ID of the doctor
-    # + date - Date of the boookings (Format: yyyy-MM-dd)
-    # + sessionStartTime - Start time of the session (Format: HH:mm AM/PM)
-    # + sessionEndTime - End time of the session (Format: HH:mm AM/PM)
-    # + return - List of bookings or error
-    resource function get doctors/[string doctorId]/next\-appointment\-number(http:Headers headers, string date,
-            string sessionStartTime, string sessionEndTime) returns NextAppointment|http:NotFound|error? {
-
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
-        }
-
-        NextAppointment|()|error nextAppointmentNumber = getNextAppointmentNumber(userInfo.organization, doctorId, date,
-        sessionStartTime, sessionEndTime);
-        if nextAppointmentNumber is () {
-            return http:NOT_FOUND;
-        } else {
-            return nextAppointmentNumber;
-        }
+        return getBookingsByDoctorId(org, doctorId, dateValue);
     }
 
     # Get doctor's details
     # + return - Doctor details or not found 
     resource function get me(http:Headers headers) returns Doctor|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        [string, string]|error orgInfo = getOrgWithEmail(headers);
+        if orgInfo is error {
+            return orgInfo;
         }
 
-        string org = userInfo.organization;
-        string email = <string>userInfo.emailAddress;
+        string org = orgInfo[0];
+        string email = orgInfo[1];
 
         Doctor|()|error result = getDoctorByOrgAndEmail(org, email);
         if result is () {
@@ -220,13 +195,13 @@ service / on new http:Listener(9090) {
     # + return - List of bookings or error
     resource function get bookings(http:Headers headers) returns Booking[]|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        [string, string]|error orgInfo = getOrgWithEmail(headers);
+        if orgInfo is error {
+            return orgInfo;
         }
 
-        string org = userInfo.organization;
-        string email = <string>userInfo.emailAddress;
+        string org = orgInfo[0];
+        string email = orgInfo[1];
 
         return getBookingsByOrgAndEmail(org, email);
     }
@@ -234,33 +209,38 @@ service / on new http:Listener(9090) {
     # Create a new booking
     # + newBooking - basic booking details
     # + return - created booking record or error
-    resource function post bookings(http:Headers headers, @http:Payload BookingItem newBooking) returns
-    Booking|http:Created|http:BadRequest|error? {
+    resource function post bookings(http:Headers headers, @http:Payload BookingItem newBooking) returns Booking|http:Created|http:BadRequest|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        [string, string]|error orgInfo = getOrgWithEmail(headers);
+        if orgInfo is error {
+            return orgInfo;
         }
 
-        string org = userInfo.organization;
-        string email = <string>userInfo.emailAddress;
+        string org = orgInfo[0];
+        string email = orgInfo[1];
 
-        Booking|error booking = addBooking(newBooking, org, email);
-        if booking is error {
-            return booking;
-        }
+        Doctor|()|error doctor = getDoctorById(newBooking.doctorId);
 
-        Doctor|()|error doctor = getDoctorByIdAndOrg(org, newBooking.doctorId);
         if doctor is Doctor {
+
+            Booking|error booking = addBooking(newBooking, org, email);
+            if booking is error {
+                return booking;
+            }
+
             error? sendEmailResult = sendEmail(booking, doctor);
             if sendEmailResult is error {
                 log:printError("Error while sending email for the booking: ", sendEmailResult);
             }
+
+            return booking;
+        } else if doctor is () {
+            log:printInfo("Doctor not found. [Booking Pet ID]:" + newBooking.petId + ", [Booking Doctor ID]:" + newBooking.doctorId);
+            return http:BAD_REQUEST;
         } else {
-            log:printError("Error while getting doctor details: ", doctor);
+            return doctor;
         }
 
-        return booking;
     }
 
     # Get a booking by ID
@@ -268,12 +248,12 @@ service / on new http:Listener(9090) {
     # + return - Booking details or not found 
     resource function get bookings/[string bookingId](http:Headers headers) returns Booking|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Booking|()|error result = getBookingByIdAndOrg(userInfo.organization, bookingId);
+        Booking|()|error result = getBookingByIdAndOrg(org, bookingId);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -284,15 +264,14 @@ service / on new http:Listener(9090) {
     # + bookingId - ID of the booking
     # + updatedBookingItem - updated booking details
     # + return - Booking details or not found 
-    resource function put bookings/[string bookingId](http:Headers headers, @http:Payload BookingItemUpdated updatedBookingItem)
-    returns Booking|http:NotFound|error? {
+    resource function put bookings/[string bookingId](http:Headers headers, @http:Payload BookingItem updatedBookingItem) returns Booking|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        Booking|()|error result = updateBookingById(userInfo.organization, bookingId, updatedBookingItem);
+        Booking|()|error result = updateBookingById(org, bookingId, updatedBookingItem);
         if result is () {
             return http:NOT_FOUND;
         }
@@ -304,12 +283,12 @@ service / on new http:Listener(9090) {
     # + return - Ok response or error
     resource function delete bookings/[string bookingId](http:Headers headers) returns http:NoContent|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        string|()|error result = deleteBookingById(userInfo.organization, bookingId);
+        string|()|error result = deleteBookingById(org, bookingId);
         if result is () {
             return http:NOT_FOUND;
         } else if result is error {
@@ -322,12 +301,12 @@ service / on new http:Listener(9090) {
     # + return - Organization information or error
     resource function get org\-info(http:Headers headers) returns OrgInfo|http:NotFound|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        OrgInfo|()|error orgInfo = getOrgInfo(userInfo.organization);
+        OrgInfo|()|error orgInfo = getOrgInfo(org);
         if orgInfo is OrgInfo {
             return orgInfo;
         } else if orgInfo is () {
@@ -342,13 +321,77 @@ service / on new http:Listener(9090) {
     # + return - Organization information or error
     resource function put org\-info(http:Headers headers, @http:Payload OrgInfoItem updatedOrgInfo) returns OrgInfo|error? {
 
-        choreoUserInfo:UserInfo|error userInfo = userInfoResolver.retrieveUserInfo(headers);
-        if userInfo is error {
-            return userInfo;
+        string|error org = getOrg(headers);
+        if org is error {
+            return org;
         }
 
-        return updateOrgInfo(userInfo.organization, updatedOrgInfo);
+        return updateOrgInfo(org, updatedOrgInfo);
     }
+}
+
+function getOrg(http:Headers headers) returns string|error {
+
+    var jwtHeader = headers.getHeader("x-jwt-assertion");
+    if jwtHeader is http:HeaderNotFoundError {
+        return jwtHeader;
+    }
+
+    [jwt:Header, jwt:Payload] [_, payload] = check jwt:decode(jwtHeader);
+    return getOrgFromPayload(payload);
+}
+
+function getOwner(http:Headers headers) returns [string, string]|error {
+
+    var jwtHeader = headers.getHeader("x-jwt-assertion");
+    if jwtHeader is http:HeaderNotFoundError {
+        return jwtHeader;
+    }
+
+    [jwt:Header, jwt:Payload] [_, payload] = check jwt:decode(jwtHeader);
+    return getOwnerFromPayload(payload);
+}
+
+function getOrgWithEmail(http:Headers headers) returns [string, string]|error {
+
+    var jwtHeader = headers.getHeader("x-jwt-assertion");
+    if jwtHeader is http:HeaderNotFoundError {
+        return jwtHeader;
+    }
+
+    [jwt:Header, jwt:Payload] [_, payload] = check jwt:decode(jwtHeader);
+
+    string org = getOrgFromPayload(payload);
+    string emailAddress = payload["email"].toString();
+
+    return [org, emailAddress];
+}
+
+function getOwnerFromPayload(jwt:Payload payload) returns [string, string] {
+
+    string? subClaim = payload.sub;
+    if subClaim is () {
+        subClaim = "Test_Key_User";
+    }
+
+    string? user_org = payload["user_organization"].toString();
+
+    if user_org is "" {
+        user_org = "Test_Key_Org";
+    }
+
+    return [<string>subClaim, <string>user_org];
+}
+
+function getOrgFromPayload(jwt:Payload payload) returns string {
+
+    string? user_org = payload["user_organization"].toString();
+
+    if user_org is "" {
+        user_org = "Test_Key_Org";
+    }
+
+    return <string>user_org;
 }
 
 function handleContent(mime:Entity bodyPart) returns Thumbnail|error? {
