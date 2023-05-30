@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import config from "../../../../../b2b-sample/config.json";
+import config from "../../../../config.json";
 import { initInstance } from "../instance";
 
 export const getDoctorInstance = () => {
