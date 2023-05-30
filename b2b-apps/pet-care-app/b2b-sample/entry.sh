@@ -3,6 +3,7 @@
 set -e
 
 ls -al
+ls /tmp
 echo "Starting entry.sh"
 cp -R /home/app/wso2/* /tmp/app
 
