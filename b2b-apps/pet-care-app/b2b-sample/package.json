@@ -4,7 +4,8 @@
   "description": "Here is a list of sample applications to try out B2B Scenarios.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "next start ./dist/apps/business-admin-app -p 3001"
   },
   "author": "",
   "license": "ISC",
@@ -39,6 +40,7 @@
     "eslint-plugin-react-hooks": "4.6.0",
     "file-loader": "^6.2.0",
     "jest": "28.1.1",
+    "rsuite": "^5.22.2",
     "jest-environment-jsdom": "28.1.1",
     "less": "^4.1.3",
     "next-auth": "^4.16.4",

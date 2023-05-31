@@ -52,6 +52,8 @@ const wso2ISProvider = (req: NextApiRequest, res: NextApiResponse) => NextAuth(r
         },
         async session({ session, token }) {
 
+            const dns = require('node:dns');
+            dns.setDefaultResultOrder('ipv4first');
             const orgSession = await controllerDecodeSwitchOrg(token);
 
             if (!orgSession) {
@@ -70,7 +72,7 @@ const wso2ISProvider = (req: NextApiRequest, res: NextApiResponse) => NextAuth(r
                 session.user = getLoggedUserFromProfile(token.user);
                 session.orgId = getOrgId(session.idToken);
                 session.orgName = getOrgName(session.idToken);
-                session.orginalIdToken = token.idToken; 
+                session.orginalIdToken = token.idToken;
 
                 const groupsList = token.user.groups;
 

@@ -20,19 +20,25 @@ RUN mkdir ${USER_HOME}/wso2 \
 COPY --chown=${USER_ID}:${USER_GROUP_ID} . ./wso2
 COPY --chown=${USER_ID}:${USER_GROUP_ID} entry.sh .
 
+RUN mkdir ${USER_HOME}/wso2/.npm_cache \
+     && chown ${USER_ID}:${USER_GROUP_ID} -R ${USER_HOME}/wso2/.npm_cache
 # Set environment variables
 # ENV HOST=0.0.0.0
 # ENV DISABLE_DEV_SERVER_HOST_CHECK=true
 # ENV HTTPS=false
 
 
-ENV npm_config_cache=/tmp/.npm
-ENV NX_CACHE_DIRECTORY=/tmp/mycache   
-ENV NX_TERMINAL_CAPTURE_STDERR="true"
+ENV npm_config_cache=/home/app/wso2/.npm_cache
+# ENV NX_CACHE_DIRECTORY=/tmp/mycache   
+# ENV NX_TERMINAL_CAPTURE_STDERR="true"
+ENV NEXTAUTH_URL=http://localhost:3001
+ENV NODE_OPTIONS='--inspect'
 ENV CYPRESS_CACHE_FOLDER=/tmp/cyp
+ENV NEXTAUTH_SECRET=V9Ogd83zDs4BtBqZf7rw7fVx/7KrYQfA+8LO2BMuJvo=
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 
 # Install dependencies
-RUN cd ${USER_HOME}/wso2 && npm install
+RUN cd ${USER_HOME}/wso2 && npm install && npx nx build business-admin-app:build:production
 
 USER 10001
 
