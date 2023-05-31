@@ -240,15 +240,21 @@ function getThumbnailByPetId(string org, string owner, string petId) returns Thu
     }
 }
 
-function getMedicalReportsByPetId(string org, string owner, string petId) returns MedicalReport[]|error {
+function getMedicalReportsByPetId(string petId) returns MedicalReport[]|error {
 
     MedicalReport[] medicalReports = [];
     if (useDB) {
         return dbGetMedicalReportsByPetId(petId);
     } else {
-        PetRecord? petRecord = petRecords[org, owner, petId];
-        if petRecord is () {
-            log:printInfo("Pet record not found: " + petId + " " + owner + " " + org);
+        PetRecord petRecord = {id: "", org: "", owner: "", name: "", dateOfBirth: "", breed: ""};
+        petRecords.forEach(function(PetRecord petRecordValue) {
+            if petRecordValue.id == petId {
+                petRecord = petRecordValue;
+            }
+        });
+
+        if petRecord.id is "" {
+            log:printInfo("Pet record not found: " + petId);
             return medicalReports;
         }
 
@@ -263,14 +269,21 @@ function getMedicalReportsByPetId(string org, string owner, string petId) return
     }
 }
 
-function getMedicalReportsByPetIdAndReportId(string org, string owner, string petId, string reportId) returns MedicalReport|()|error {
+function getMedicalReportsByPetIdAndReportId(string petId, string reportId) returns MedicalReport|()|error {
 
     MedicalReport[] medicalReports = [];
     if (useDB) {
         return dbGetMedicalReportsByPetIdAndReportId(petId, reportId);
     } else {
-        PetRecord? petRecord = petRecords[org, owner, petId];
-        if petRecord is () {
+
+        PetRecord petRecord = {id: "", org: "", owner: "", name: "", dateOfBirth: "", breed: ""};
+        petRecords.forEach(function(PetRecord petRecordValue) {
+            if petRecordValue.id == petId {
+                petRecord = petRecordValue;
+            }
+        });
+
+        if petRecord.id is "" {
             return ();
         }
 
@@ -323,10 +336,10 @@ function addMedicalReport(string petId, MedicalReportItem medicalReportItem) ret
     }
 }
 
-function updateMedicalReport(string org, string owner, string petId, string reportId, MedicalReportItem updatedMedicalReportItem)
+function updateMedicalReport(string petId, string reportId, MedicalReportItem updatedMedicalReportItem)
 returns MedicalReport|()|error {
 
-    MedicalReport|()|error oldMedicalReport = getMedicalReportsByPetIdAndReportId(org, owner, petId, reportId);
+    MedicalReport|()|error oldMedicalReport = getMedicalReportsByPetIdAndReportId(petId, reportId);
 
     if oldMedicalReport is error {
         return oldMedicalReport;
@@ -341,8 +354,14 @@ returns MedicalReport|()|error {
         if (useDB) {
             return dbAddOrUpdateMedicalRecord(petId, medicalReport, true);
         } else {
-            PetRecord? petRecord = petRecords[org, owner, petId];
-            if petRecord is () {
+            PetRecord petRecord = {id: "", org: "", owner: "", name: "", dateOfBirth: "", breed: ""};
+            petRecords.forEach(function(PetRecord petRecordValue) {
+                if petRecord.id == petId {
+                    petRecord = petRecordValue;
+                }
+            });
+
+            if petRecord.id == "" {
                 return ();
             }
 
@@ -358,9 +377,9 @@ returns MedicalReport|()|error {
     }
 }
 
-function deleteMedicalReportById(string org, string owner, string petId, string reportId) returns string|()|error {
+function deleteMedicalReportById(string petId, string reportId) returns string|()|error {
 
-    MedicalReport|()|error oldMedicalReport = getMedicalReportsByPetIdAndReportId(org, owner, petId, reportId);
+    MedicalReport|()|error oldMedicalReport = getMedicalReportsByPetIdAndReportId(petId, reportId);
 
     if oldMedicalReport is error {
         return oldMedicalReport;
@@ -371,8 +390,14 @@ function deleteMedicalReportById(string org, string owner, string petId, string 
         if (useDB) {
             return dbDeleteMedicalReportByReportId(petId, reportId);
         } else {
-            PetRecord? petRecord = petRecords[org, owner, petId];
-            if petRecord is () {
+            PetRecord petRecord = {id: "", org: "", owner: "", name: "", dateOfBirth: "", breed: ""};
+            petRecords.forEach(function(PetRecord petRecordValue) {
+                if petRecord.id == petId {
+                    petRecord = petRecordValue;
+                }
+            });
+
+            if petRecord.id == "" {
                 return ();
             }
 

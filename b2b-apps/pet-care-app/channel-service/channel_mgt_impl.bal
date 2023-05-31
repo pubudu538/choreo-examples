@@ -125,32 +125,15 @@ function getDoctorById(string doctorId) returns Doctor|()|error {
 
 function getDoctorByOrgAndEmail(string org, string emailAddress) returns Doctor|()|error {
 
-    Doctor doctor = {
-        id: "",
-        org: "",
-        emailAddress: "",
-        address: "",
-        specialty: "",
-        gender: "",
-        registrationNumber: "",
-        name: "",
-        availability: [],
-        createdAt: ""
-    };
     if (useDB) {
         return dbGetDoctorByOrgAndEmail(org, emailAddress);
     } else {
         foreach Doctor doc in doctorRecords {
             if doc.org == org && doc.emailAddress == emailAddress {
-                doctor = doc;
-                break;
+                return doc;
             }
         }
-
-        if doctor.id == "" {
-            return ();
-        }
-        return doctor;
+        return ();
     }
 
 }
@@ -175,6 +158,7 @@ function updateDoctorById(string org, string doctorId, DoctorItem updatedDoctorI
         if oldeDoctorRecord is () {
             return ();
         }
+        _ = doctorRecords.remove([org, doctorId]);
         doctorRecords.put({id: doctorId, org: org, createdAt: oldeDoctorRecord.createdAt, ...updatedDoctorItem});
         Doctor? doctor = doctorRecords[org, doctorId];
         return doctor;
