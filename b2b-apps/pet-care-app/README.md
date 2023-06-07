@@ -1,14 +1,14 @@
-# Pet Management Application User Guide
+# Pet Management B2B Application User Guide
 
-The Pet Management Application is a B2C (business-to-consumer) application that allows users to sign up and maintain their pets. They can enter basic information and vaccination information for their pets into the system. They can then set up email alerts for their pets' upcoming vaccination dates. The instructions below will walk you through deploying and managing the pet management service's backend service and front end application in [Choreo](https://wso2.com/choreo/). [Asgardeo](https://wso2.com/asgardeo/) assists you in addressing your application's CIAM capabilities. 
+The Pet Management Application is a B2B (business-to-business) application that allows users to sign up and on board doctors and pet owners to their vet hospital. There are 3 user types in this system; admin, doctor and pet owner. Admin can add doctors and pet owners to the system and manage their roles via the admin portal. Doctors can log into the system and check their bookings and add medical reports to the pets and finally complete the booking. Pet owners can login to the system and add their pets, enter basic information about their pet and vaccination details. And also pet owner can channel a doctor for their pet. The instructions below will walk you through deploying and managing the pet management service's backend service and front end application in [Choreo](https://wso2.com/choreo/). [Asgardeo](https://wso2.com/asgardeo/) assists you in addressing your application's CIAM capabilities. 
 
 ---
 
-# Step 1: Create and publish a Service
+# Step 1: Create and publish Services
 
-In this step, you are playing the role of the API developer. You will create and publish the Service that the web application needs to consume. Before you proceed, sign into [**Choreo Console**](https://console.choreo.dev/).
+In this step, you are playing the role of the API developer. You will create and publish the Services that the web application needs to consume. Before you proceed, sign into [**Choreo Console**](https://console.choreo.dev/).
 
-## Step 1.1: Create the Service
+## Step 1.1: Create the Pet Management Service
 
 Let's create your first Service.
 1. On the **Home** page, click on the project you created.
@@ -31,7 +31,7 @@ Let's create your first Service.
     | GitHub Repository | choreo-examples |
     | Branch | main |
     | Build Preset | Click **Ballerina** because you are creating the REST API from a Ballerina project and Choreo needs to run a Ballerina build to build it. |
-    | Path | /b2c-apps/pet-care-app/pet-management-service |
+    | Path | /b2b-apps/pet-care-app/pet-management-service |
 
 8. Click **Create** to initialize a Service with the implementation from your GitHub repository.
 
@@ -177,12 +177,44 @@ Now that yourService is tested, let's publish it and make it available for appli
 4. The Pet Management Service will open in the Developer Portal.
 
 &nbsp;<br>
+
+
+## Step 1.7: Create the Channelling Service
+
+Let's create your second Service.
+1. On the **Home** page, click on the project you created.
+2. Click **Create** in the Service card.
+3. Enter a unique name and a description for the Service. For example, you can enter the name and the description given below:
+
+    | Field | Value |
+    | -------- | -------- |
+    | Name | Channelling Service |
+    | Description | Manage your doctor channellings |
+
+4. Click **Next**.
+5. To allow Choreo to connect to your GitHub account, click **Authorize with GitHub**.
+6. If you have not already connected your GitHub repository to Choreo, enter your GitHub credentials, and select the repository you created by forking https://github.com/wso2/choreo-examples to install the Choreo GitHub App.
+7. In the Connect Repository dialog box, enter the following information:
+
+    | Field | Value |
+    | -------- | -------- |
+    | GitHub Account | Your account |
+    | GitHub Repository | choreo-examples |
+    | Branch | main |
+    | Build Preset | Click **Ballerina** because you are creating the REST API from a Ballerina project and Choreo needs to run a Ballerina build to build it. |
+    | Path | /b2b-apps/pet-care-app/channel-service |
+
+8. Click **Create** to initialize a Service with the implementation from your GitHub repository.
+
+The Service opens on a separate page where you can see its overview
+Now follow steps 1.2 to 1.6 to deploy and publish this service.
+
 # Step 2: Consume the Service from Developer Portal
 
 ## Step 2.1: Create an application
 
 An application in the Developer Portal is a logical representation of a physical application such as a mobile app, web app, device, etc.
-Let's create the application to consume the Pet Management Service by following the steps given below:
+Let's create the application to consume the Pet Management Service and Channel Service by following the steps given below:
 1. Go to the **Developer Portal**.
 2. In the top menu of the Developer Portal, click **Applications**.
 3. Click **Create**.
@@ -195,13 +227,13 @@ Your Application will open on a separate page.
 To consume the Service, the `Pet Management App` application needs to subscribe to it. To subscribe your application to the Service, follow the steps given below:
 1. In the left navigation menu, click **Subscriptions**.
 2. Click **Add APIs**.
-3. Find your Service and click **Add**.
+3. Find your Services and click **Add**.
 
-Now your application has subscribed to the `Pet Management Service` Service.
+Now your application has subscribed to the `Pet Management Service` and `Channel Service` Services.
 
 ## Step 2.3: Generate Credentials for the Application
 
-To consume the Service, you need to use the application keys. The below steps specify how you can generate keys for the application.
+To consume the Services, you need to use the application keys. The below steps specify how you can generate keys for the application.
 1. In the left navigation menu, click **Production** on **Credentials**.
 2. Click **Generate Credentials**.
 
@@ -222,8 +254,8 @@ In this step, you are going to deploy the pet management front-end application i
 
     | Field | Value |
     | -------- | -------- |
-    | Name | Pet Management Web App |
-    | Description | Web application for managing your pets. |
+    | Name | Pet Care Web App |
+    | Description | Web application for managing your vet hospital. |
 
 6. Click on the **Next** button.
 7. To allow Choreo to connect to your **GitHub** account, click **Authorize with GitHub**.
@@ -234,9 +266,9 @@ In this step, you are going to deploy the pet management front-end application i
     | GitHub Account | Your account |
     | GitHub Repository | choreo-examples |
     | Branch | main |
-    | Dockerfile Path | /b2c-apps/pet-care-app/pet-management-webapp/Dockerfile |
-    | Docker Context Path | /b2c-apps/pet-care-app/pet-management-webapp|
-    | Port |3000|
+    | Dockerfile Path | /b2b-apps/pet-care-app/pet-management-webapp/Dockerfile |
+    | Docker Context Path | /b2b-apps/pet-care-app/pet-management-webapp|
+    | Port |3001|
 
 9. Click on the **Create** button.
 10. The Web Application opens on a separate page where you can see its overview.
